@@ -1,8 +1,8 @@
+import { useState } from "react";
 import { Copy, Check, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,37 +18,46 @@ interface PromptCardProps {
 const PromptCard = ({ id, imageUrl, promptText, aiTool, category, copyCount }: PromptCardProps) => {
   const [copied, setCopied] = useState(false);
   const [currentCopyCount, setCurrentCopyCount] = useState(copyCount);
+  const [lastCopyTime, setLastCopyTime] = useState<number>(0);
+
+  const COPY_COOLDOWN = 5000; // 5 seconds
 
   const handleCopy = async () => {
-    // Copy to clipboard
-    navigator.clipboard.writeText(promptText);
-    setCopied(true);
-    toast.success("Prompt copied to clipboard!");
-    setTimeout(() => setCopied(false), 2000);
+    const now = Date.now();
+    
+    // Rate limiting check
+    if (now - lastCopyTime < COPY_COOLDOWN) {
+      const remainingSeconds = Math.ceil((COPY_COOLDOWN - (now - lastCopyTime)) / 1000);
+      toast.error(`Please wait ${remainingSeconds} seconds before copying again`);
+      return;
+    }
 
     try {
+      await navigator.clipboard.writeText(promptText);
+      setCopied(true);
+      setLastCopyTime(now);
+      toast.success("Prompt copied to clipboard!");
+
       // Increment copy count in database
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("prompts")
         .update({ copy_count: currentCopyCount + 1 })
-        .eq("id", id)
-        .select("copy_count")
-        .single();
+        .eq("id", id);
 
-      if (error) throw error;
-      
-      if (data) {
-        setCurrentCopyCount(data.copy_count);
+      if (!error) {
+        setCurrentCopyCount(prev => prev + 1);
       }
+
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error("Error updating copy count:", error);
+      toast.error("Failed to copy prompt");
     }
   };
 
   const isPopular = currentCopyCount >= 5;
 
   return (
-    <Card className="overflow-hidden hover:shadow-[var(--shadow-hover)] transition-all duration-300 hover:scale-[1.02] bg-card border-border">
+    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
       {imageUrl && (
         <div className="aspect-square overflow-hidden bg-muted relative">
           <img

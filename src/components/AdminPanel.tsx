@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus, Shield } from "lucide-react";
 import CategoryFilters from "./CategoryFilters";
 import PromptCard from "./PromptCard";
 import AddPromptForm from "./AddPromptForm";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
 interface Prompt {
   id: string;
@@ -21,86 +22,106 @@ interface AdminPanelProps {
 }
 
 const AdminPanel = ({ onBack }: AdminPanelProps) => {
-  const [selectedCategory, setSelectedCategory] = useState("All Prompts");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All Prompts");
   const [showAddForm, setShowAddForm] = useState(false);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect if not authenticated or not admin
+  useEffect(() => {
+    if (!authLoading && (!user || !isAdmin)) {
+      navigate("/");
+    }
+  }, [user, isAdmin, authLoading, navigate]);
 
   const fetchPrompts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("prompts")
-        .select("*")
-        .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("prompts")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (error) throw error;
+    if (!error) {
       setPrompts(data || []);
-    } catch (error) {
-      console.error("Error fetching prompts:", error);
-      toast.error("Failed to load prompts");
-    } finally {
-      setIsLoading(false);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchPrompts();
+    if (user && isAdmin) {
+      fetchPrompts();
 
-    // Subscribe to realtime changes in admin panel
-    const channel = supabase
-      .channel("admin-prompts-channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "prompts",
-        },
-        (payload) => {
-          console.log("Admin panel: Database changed!", payload);
-          fetchPrompts();
-        }
-      )
-      .subscribe();
+      const channel = supabase
+        .channel("admin-prompts-changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "prompts",
+          },
+          () => {
+            fetchPrompts();
+          }
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user, isAdmin]);
 
-  const filteredPrompts = prompts.filter((prompt) => {
-    if (selectedCategory === "All Prompts") return true;
-    return prompt.category === selectedCategory;
-  });
+  const filteredPrompts =
+    selectedCategory === "All Prompts"
+      ? prompts
+      : prompts.filter((prompt) => prompt.category === selectedCategory);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
+      <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Main
-          </Button>
-          <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
-          <div className="w-32" /> {/* Spacer for alignment */}
-        </div>
-
-        {/* Category Filters and Add Button */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
-          <CategoryFilters
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-          />
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+            <div className="flex items-center gap-2">
+              <Shield className="w-6 h-6 text-primary" />
+              <h1 className="text-3xl font-bold">Admin Panel</h1>
+            </div>
+          </div>
           {!showAddForm && (
             <Button onClick={() => setShowAddForm(true)} size="lg">
               <Plus className="w-5 h-5 mr-2" />
-              Add New Image
+              Add New Prompt
             </Button>
           )}
         </div>
 
-        {/* Add Form */}
+        <CategoryFilters
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+        />
+
         {showAddForm && (
           <AddPromptForm
             onClose={() => setShowAddForm(false)}
@@ -111,8 +132,7 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
           />
         )}
 
-        {/* Prompts Grid */}
-        {isLoading ? (
+        {loading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading prompts...</p>
           </div>
@@ -123,7 +143,7 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-8">
             {filteredPrompts.map((prompt) => (
               <PromptCard
                 key={prompt.id}

@@ -1,39 +1,13 @@
-interface FooterProps {
-  onSecretLineClick: () => void;
-}
+import { Heart } from "lucide-react";
 
-const Footer = ({ onSecretLineClick }: FooterProps) => {
+const Footer = () => {
   return (
-    <footer className="mt-20 py-12 px-6 bg-muted/30 text-center border-t border-border">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-3 text-foreground">Features:</h3>
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p>• One-click copy</p>
-            <p>• Visual references</p>
-            <p>• Category filters</p>
-            <p>• Search functionality</p>
-          </div>
-        </div>
-        
-        <div>
-          <h3 className="text-lg font-semibold mb-3 text-foreground">Categories:</h3>
-          <p className="text-sm text-muted-foreground">
-            Men | Women | Couple | Kids
-          </p>
-        </div>
-        
-        <p className="text-sm text-muted-foreground">
-          Made with ♡
+    <footer className="border-t border-border/40 bg-background/95 backdrop-blur mt-auto">
+      <div className="container mx-auto px-4 py-8 text-center">
+        <p className="text-muted-foreground">
+          Made with <Heart className="inline w-4 h-4 text-red-500 fill-current animate-pulse" /> by PromptVault Team
         </p>
       </div>
-      
-      {/* Secret silver line */}
-      <div 
-        className="mt-8 mx-auto max-w-md h-[2px] bg-gradient-to-r from-transparent via-gray-400 to-transparent cursor-pointer hover:via-gray-500 transition-all"
-        onDoubleClick={onSecretLineClick}
-        title="Double click for secret access"
-      />
     </footer>
   );
 };

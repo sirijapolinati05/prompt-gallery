@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import CategoryFilters from "@/components/CategoryFilters";
 import SearchBar from "@/components/SearchBar";
 import PromptCard from "@/components/PromptCard";
 import Footer from "@/components/Footer";
-import SecretModal from "@/components/SecretModal";
 import AdminPanel from "@/components/AdminPanel";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Prompt {
   id: string;
@@ -19,39 +18,30 @@ interface Prompt {
 }
 
 const Index = () => {
-  const [selectedCategory, setSelectedCategory] = useState("All Prompts");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isSecretModalOpen, setIsSecretModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("All Prompts");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAuth();
 
   const fetchPrompts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("prompts")
-        .select("*")
-        .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("prompts")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      if (error) throw error;
+    if (!error) {
       setPrompts(data || []);
-    } catch (error) {
-      console.error("Error fetching prompts:", error);
-      toast.error("Failed to load prompts");
-    } finally {
-      setIsLoading(false);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    // Fetch prompts when component mounts or when returning from admin mode
-    if (!isAdminMode) {
-      fetchPrompts();
-    }
+    fetchPrompts();
 
-    // Subscribe to realtime changes
     const channel = supabase
-      .channel("main-prompts-channel")
+      .channel("prompts-changes")
       .on(
         "postgres_changes",
         {
@@ -59,8 +49,7 @@ const Index = () => {
           schema: "public",
           table: "prompts",
         },
-        (payload) => {
-          console.log("Main panel: Database changed!", payload);
+        () => {
           fetchPrompts();
         }
       )
@@ -69,7 +58,14 @@ const Index = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAdminMode]);
+  }, []);
+
+  // Toggle admin mode only if user is admin
+  const handleAdminToggle = () => {
+    if (isAdmin) {
+      setIsAdminMode(!isAdminMode);
+    }
+  };
 
   const filteredPrompts = prompts.filter((prompt) => {
     const matchesCategory =
@@ -81,15 +77,15 @@ const Index = () => {
     return matchesCategory && matchesSearch;
   });
 
-  if (isAdminMode) {
+  if (isAdminMode && isAdmin) {
     return <AdminPanel onBack={() => setIsAdminMode(false)} />;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-accent/5">
+      <Header onAdminClick={isAdmin ? handleAdminToggle : undefined} />
       
-      <main className="max-w-7xl mx-auto py-12 px-4">
+      <main className="container mx-auto px-4 py-12 flex-1">
         <CategoryFilters
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
@@ -97,7 +93,7 @@ const Index = () => {
         
         <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
         
-        {isLoading ? (
+        {loading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading prompts...</p>
           </div>
@@ -124,13 +120,7 @@ const Index = () => {
         )}
       </main>
 
-      <Footer onSecretLineClick={() => setIsSecretModalOpen(true)} />
-      
-      <SecretModal
-        isOpen={isSecretModalOpen}
-        onClose={() => setIsSecretModalOpen(false)}
-        onSuccess={() => setIsAdminMode(true)}
-      />
+      <Footer />
     </div>
   );
 };
