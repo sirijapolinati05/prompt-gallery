@@ -1,75 +1,35 @@
-import { useState } from "react";
-import { Copy, Check, Users } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface PromptCardProps {
-  id: string;
   imageUrl?: string;
   promptText: string;
   aiTool: string;
   category: string;
-  copyCount: number;
 }
 
-const PromptCard = ({ id, imageUrl, promptText, aiTool, category, copyCount }: PromptCardProps) => {
+const PromptCard = ({ imageUrl, promptText, aiTool, category }: PromptCardProps) => {
   const [copied, setCopied] = useState(false);
-  const [currentCopyCount, setCurrentCopyCount] = useState(copyCount);
-  const [lastCopyTime, setLastCopyTime] = useState<number>(0);
 
-  const COPY_COOLDOWN = 5000; // 5 seconds
-
-  const handleCopy = async () => {
-    const now = Date.now();
-    
-    // Rate limiting check
-    if (now - lastCopyTime < COPY_COOLDOWN) {
-      const remainingSeconds = Math.ceil((COPY_COOLDOWN - (now - lastCopyTime)) / 1000);
-      toast.error(`Please wait ${remainingSeconds} seconds before copying again`);
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(promptText);
-      setCopied(true);
-      setLastCopyTime(now);
-      toast.success("Prompt copied to clipboard!");
-
-      // Increment copy count in database
-      const { error } = await supabase
-        .from("prompts")
-        .update({ copy_count: currentCopyCount + 1 })
-        .eq("id", id);
-
-      if (!error) {
-        setCurrentCopyCount(prev => prev + 1);
-      }
-
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast.error("Failed to copy prompt");
-    }
+  const handleCopy = () => {
+    navigator.clipboard.writeText(promptText);
+    setCopied(true);
+    toast.success("Prompt copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const isPopular = currentCopyCount >= 5;
-
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+    <Card className="overflow-hidden hover:shadow-[var(--shadow-hover)] transition-all duration-300 hover:scale-[1.02] bg-card border-border">
       {imageUrl && (
-        <div className="aspect-square overflow-hidden bg-muted relative">
+        <div className="aspect-square overflow-hidden bg-muted">
           <img
             src={imageUrl}
             alt="Prompt preview"
             className="w-full h-full object-cover"
           />
-          {isPopular && (
-            <Badge className="absolute top-3 right-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-lg">
-              ⭐ Popular
-            </Badge>
-          )}
         </div>
       )}
       <CardContent className="p-5 space-y-3">
@@ -99,14 +59,6 @@ const PromptCard = ({ id, imageUrl, promptText, aiTool, category, copyCount }: P
             </>
           )}
         </Button>
-        
-        {/* Copy Count Display */}
-        {currentCopyCount > 0 && (
-          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
-            <Users className="w-4 h-4" />
-            <span>Copied by {currentCopyCount} {currentCopyCount === 1 ? "person" : "people"}</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

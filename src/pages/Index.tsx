@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import CategoryFilters from "@/components/CategoryFilters";
 import SearchBar from "@/components/SearchBar";
 import PromptCard from "@/components/PromptCard";
 import Footer from "@/components/Footer";
+import SecretModal from "@/components/SecretModal";
 import AdminPanel from "@/components/AdminPanel";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Prompt {
   id: string;
@@ -14,34 +15,42 @@ interface Prompt {
   prompt_text: string;
   ai_tool: string;
   category: string;
-  copy_count: number;
 }
 
 const Index = () => {
-  const [selectedCategory, setSelectedCategory] = useState<string>("All Prompts");
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState("All Prompts");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSecretModalOpen, setIsSecretModalOpen] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { isAdmin, loading: authLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchPrompts = async () => {
-    const { data, error } = await supabase
-      .from("prompts")
-      .select("*")
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("prompts")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (!error) {
+      if (error) throw error;
       setPrompts(data || []);
+    } catch (error) {
+      console.error("Error fetching prompts:", error);
+      toast.error("Failed to load prompts");
+    } finally {
+      setIsLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
-    fetchPrompts();
+    // Fetch prompts when component mounts or when returning from admin mode
+    if (!isAdminMode) {
+      fetchPrompts();
+    }
 
+    // Subscribe to realtime changes
     const channel = supabase
-      .channel("prompts-changes")
+      .channel("main-prompts-channel")
       .on(
         "postgres_changes",
         {
@@ -49,7 +58,8 @@ const Index = () => {
           schema: "public",
           table: "prompts",
         },
-        () => {
+        (payload) => {
+          console.log("Main panel: Database changed!", payload);
           fetchPrompts();
         }
       )
@@ -58,14 +68,7 @@ const Index = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
-
-  // Toggle admin mode only if user is admin
-  const handleAdminToggle = () => {
-    if (isAdmin) {
-      setIsAdminMode(!isAdminMode);
-    }
-  };
+  }, [isAdminMode]);
 
   const filteredPrompts = prompts.filter((prompt) => {
     const matchesCategory =
@@ -77,24 +80,15 @@ const Index = () => {
     return matchesCategory && matchesSearch;
   });
 
-  // Show loading state while auth is initializing
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/5">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
-
-  if (isAdminMode && isAdmin) {
+  if (isAdminMode) {
     return <AdminPanel onBack={() => setIsAdminMode(false)} />;
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-accent/5">
-      <Header onAdminClick={isAdmin ? handleAdminToggle : undefined} />
+    <div className="min-h-screen bg-background">
+      <Header />
       
-      <main className="container mx-auto px-4 py-12 flex-1">
+      <main className="max-w-7xl mx-auto py-12 px-4">
         <CategoryFilters
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
@@ -102,7 +96,7 @@ const Index = () => {
         
         <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
         
-        {loading ? (
+        {isLoading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading prompts...</p>
           </div>
@@ -117,19 +111,23 @@ const Index = () => {
             {filteredPrompts.map((prompt) => (
               <PromptCard
                 key={prompt.id}
-                id={prompt.id}
                 imageUrl={prompt.image_url || undefined}
                 promptText={prompt.prompt_text}
                 aiTool={prompt.ai_tool}
                 category={prompt.category}
-                copyCount={prompt.copy_count}
               />
             ))}
           </div>
         )}
       </main>
 
-      <Footer />
+      <Footer onSecretLineClick={() => setIsSecretModalOpen(true)} />
+      
+      <SecretModal
+        isOpen={isSecretModalOpen}
+        onClose={() => setIsSecretModalOpen(false)}
+        onSuccess={() => setIsAdminMode(true)}
+      />
     </div>
   );
 };
