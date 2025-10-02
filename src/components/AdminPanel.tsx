@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
-import Header from "@/components/Header";
-import CategoryFilters from "@/components/CategoryFilters";
-import SearchBar from "@/components/SearchBar";
-import PromptCard from "@/components/PromptCard";
-import Footer from "@/components/Footer";
-import SecretModal from "@/components/SecretModal";
-import AdminPanel from "@/components/AdminPanel";
+import { Button } from "@/components/ui/button";
+import { Plus, ArrowLeft } from "lucide-react";
+import CategoryFilters from "./CategoryFilters";
+import PromptCard from "./PromptCard";
+import AddPromptForm from "./AddPromptForm";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -17,11 +15,13 @@ interface Prompt {
   category: string;
 }
 
-const Index = () => {
+interface AdminPanelProps {
+  onBack: () => void;
+}
+
+const AdminPanel = ({ onBack }: AdminPanelProps) => {
   const [selectedCategory, setSelectedCategory] = useState("All Prompts");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isSecretModalOpen, setIsSecretModalOpen] = useState(false);
-  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -67,31 +67,49 @@ const Index = () => {
   }, []);
 
   const filteredPrompts = prompts.filter((prompt) => {
-    const matchesCategory =
-      selectedCategory === "All Prompts" || prompt.category === selectedCategory;
-    const matchesSearch =
-      searchTerm === "" ||
-      prompt.prompt_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prompt.ai_tool.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
+    if (selectedCategory === "All Prompts") return true;
+    return prompt.category === selectedCategory;
   });
 
-  if (isAdminMode) {
-    return <AdminPanel onBack={() => setIsAdminMode(false)} />;
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <main className="max-w-7xl mx-auto py-12 px-4">
-        <CategoryFilters
-          selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
-        />
-        
-        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-        
+    <div className="min-h-screen bg-background py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Main
+          </Button>
+          <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
+          <div className="w-32" /> {/* Spacer for alignment */}
+        </div>
+
+        {/* Category Filters and Add Button */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+          <CategoryFilters
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+          />
+          {!showAddForm && (
+            <Button onClick={() => setShowAddForm(true)} size="lg">
+              <Plus className="w-5 h-5 mr-2" />
+              Add New Image
+            </Button>
+          )}
+        </div>
+
+        {/* Add Form */}
+        {showAddForm && (
+          <AddPromptForm
+            onClose={() => setShowAddForm(false)}
+            onSuccess={() => {
+              fetchPrompts();
+              setShowAddForm(false);
+            }}
+          />
+        )}
+
+        {/* Prompts Grid */}
         {isLoading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading prompts...</p>
@@ -99,7 +117,7 @@ const Index = () => {
         ) : filteredPrompts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">
-              No prompts found. Try adjusting your filters or search term.
+              No prompts found. Add your first prompt!
             </p>
           </div>
         ) : (
@@ -115,17 +133,9 @@ const Index = () => {
             ))}
           </div>
         )}
-      </main>
-
-      <Footer onSecretLineClick={() => setIsSecretModalOpen(true)} />
-      
-      <SecretModal
-        isOpen={isSecretModalOpen}
-        onClose={() => setIsSecretModalOpen(false)}
-        onSuccess={() => setIsAdminMode(true)}
-      />
+      </div>
     </div>
   );
 };
 
-export default Index;
+export default AdminPanel;
