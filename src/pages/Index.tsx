@@ -23,7 +23,7 @@ const Index = () => {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading: authLoading } = useAuth();
 
   const fetchPrompts = async () => {
     const { data, error } = await supabase
@@ -76,6 +76,15 @@ const Index = () => {
       prompt.ai_tool.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
+
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/5">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   if (isAdminMode && isAdmin) {
     return <AdminPanel onBack={() => setIsAdminMode(false)} />;
