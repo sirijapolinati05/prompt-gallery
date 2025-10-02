@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           ai_tool: string
           category: string
+          copy_count: number
           created_at: string
           id: string
           image_url: string | null
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           ai_tool: string
           category: string
+          copy_count?: number
           created_at?: string
           id?: string
           image_url?: string | null
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           ai_tool?: string
           category?: string
+          copy_count?: number
           created_at?: string
           id?: string
           image_url?: string | null

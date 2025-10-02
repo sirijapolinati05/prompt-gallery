@@ -13,6 +13,7 @@ interface Prompt {
   prompt_text: string;
   ai_tool: string;
   category: string;
+  copy_count: number;
 }
 
 interface AdminPanelProps {
@@ -126,10 +127,12 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
             {filteredPrompts.map((prompt) => (
               <PromptCard
                 key={prompt.id}
+                id={prompt.id}
                 imageUrl={prompt.image_url || undefined}
                 promptText={prompt.prompt_text}
                 aiTool={prompt.ai_tool}
                 category={prompt.category}
+                copyCount={prompt.copy_count}
               />
             ))}
           </div>

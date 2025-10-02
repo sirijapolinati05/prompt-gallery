@@ -1,35 +1,66 @@
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PromptCardProps {
+  id: string;
   imageUrl?: string;
   promptText: string;
   aiTool: string;
   category: string;
+  copyCount: number;
 }
 
-const PromptCard = ({ imageUrl, promptText, aiTool, category }: PromptCardProps) => {
+const PromptCard = ({ id, imageUrl, promptText, aiTool, category, copyCount }: PromptCardProps) => {
   const [copied, setCopied] = useState(false);
+  const [currentCopyCount, setCurrentCopyCount] = useState(copyCount);
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
+    // Copy to clipboard
     navigator.clipboard.writeText(promptText);
     setCopied(true);
     toast.success("Prompt copied to clipboard!");
     setTimeout(() => setCopied(false), 2000);
+
+    try {
+      // Increment copy count in database
+      const { data, error } = await supabase
+        .from("prompts")
+        .update({ copy_count: currentCopyCount + 1 })
+        .eq("id", id)
+        .select("copy_count")
+        .single();
+
+      if (error) throw error;
+      
+      if (data) {
+        setCurrentCopyCount(data.copy_count);
+      }
+    } catch (error) {
+      console.error("Error updating copy count:", error);
+    }
   };
+
+  const isPopular = currentCopyCount >= 5;
 
   return (
     <Card className="overflow-hidden hover:shadow-[var(--shadow-hover)] transition-all duration-300 hover:scale-[1.02] bg-card border-border">
       {imageUrl && (
-        <div className="aspect-square overflow-hidden bg-muted">
+        <div className="aspect-square overflow-hidden bg-muted relative">
           <img
             src={imageUrl}
             alt="Prompt preview"
             className="w-full h-full object-cover"
           />
+          {isPopular && (
+            <Badge className="absolute top-3 right-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-lg">
+              ⭐ Popular
+            </Badge>
+          )}
         </div>
       )}
       <CardContent className="p-5 space-y-3">
@@ -59,6 +90,14 @@ const PromptCard = ({ imageUrl, promptText, aiTool, category }: PromptCardProps)
             </>
           )}
         </Button>
+        
+        {/* Copy Count Display */}
+        {currentCopyCount > 0 && (
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
+            <Users className="w-4 h-4" />
+            <span>Copied by {currentCopyCount} {currentCopyCount === 1 ? "person" : "people"}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
