@@ -43,11 +43,14 @@ const Index = () => {
   };
 
   useEffect(() => {
-    fetchPrompts();
+    // Fetch prompts when component mounts or when returning from admin mode
+    if (!isAdminMode) {
+      fetchPrompts();
+    }
 
     // Subscribe to realtime changes
     const channel = supabase
-      .channel("prompts-changes")
+      .channel("main-prompts-channel")
       .on(
         "postgres_changes",
         {
@@ -55,7 +58,8 @@ const Index = () => {
           schema: "public",
           table: "prompts",
         },
-        () => {
+        (payload) => {
+          console.log("Main panel: Database changed!", payload);
           fetchPrompts();
         }
       )
@@ -64,7 +68,7 @@ const Index = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [isAdminMode]);
 
   const filteredPrompts = prompts.filter((prompt) => {
     const matchesCategory =

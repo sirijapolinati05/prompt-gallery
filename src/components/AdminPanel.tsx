@@ -45,9 +45,9 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
   useEffect(() => {
     fetchPrompts();
 
-    // Subscribe to realtime changes
+    // Subscribe to realtime changes in admin panel
     const channel = supabase
-      .channel("prompts-changes")
+      .channel("admin-prompts-channel")
       .on(
         "postgres_changes",
         {
@@ -55,7 +55,8 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
           schema: "public",
           table: "prompts",
         },
-        () => {
+        (payload) => {
+          console.log("Admin panel: Database changed!", payload);
           fetchPrompts();
         }
       )

@@ -86,8 +86,13 @@ const AddPromptForm = ({ onClose, onSuccess }: AddPromptFormProps) => {
 
       if (insertError) throw insertError;
 
-      toast.success("Prompt added successfully!");
+      console.log("Prompt successfully added to database!");
+      toast.success("Prompt added successfully! It will appear in both Admin and Main panels.");
+      
+      // Call success callback to trigger refresh
       onSuccess();
+      
+      // Close the form
       onClose();
       
       // Reset form
