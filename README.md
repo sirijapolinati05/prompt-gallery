@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Prompt Gallery
 
 Prompt Gallery is a React-based web application that acts as a centralized hub for AI image generation prompts. Instead of searching across multiple tools, this app provides a clean and organized interface where users can browse, search, and copy prompts instantly.
@@ -113,3 +114,6 @@ Commit your changes (git commit -m "Added new feature")
 Push to your branch (git push origin feature-branch)
 
 Open a Pull Request
+=======
+# prompt-gallery
+>>>>>>> d76a3d1020a9981bd71c30976bc59da7fc18cbb7
