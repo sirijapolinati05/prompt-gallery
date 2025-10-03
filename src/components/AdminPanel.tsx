@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
 import CategoryFilters from "./CategoryFilters";
 import PromptCard from "./PromptCard";
-import AddPromptForm from "./AddPromptForm";
-import { supabase } from "@/integrations/supabase/client";
+import PromptForm from "./PromptForm";
+import Dexie from "dexie";
 import { toast } from "sonner";
 
 interface Prompt {
@@ -13,27 +13,48 @@ interface Prompt {
   prompt_text: string;
   ai_tool: string;
   category: string;
+  created_at: string;
 }
 
 interface AdminPanelProps {
   onBack: () => void;
 }
 
+// Initialize Dexie database
+const db = new Dexie("PromptsDatabase");
+db.version(1).stores({
+  prompts: "id, prompt_text, ai_tool, category, created_at",
+});
+
 const AdminPanel = ({ onBack }: AdminPanelProps) => {
   const [selectedCategory, setSelectedCategory] = useState("All Prompts");
   const [showAddForm, setShowAddForm] = useState(false);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null);
 
   const fetchPrompts = async () => {
     try {
-      const { data, error } = await supabase
-        .from("prompts")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setPrompts(data || []);
+      const data = await db.prompts
+        .orderBy("created_at")
+        .reverse()
+        .toArray();
+      // Add copy count from localStorage to each prompt
+      const promptsWithCounts = data.map((prompt) => {
+        const storageKey = `copyCount_${prompt.prompt_text.replace(/\s+/g, '_')}`;
+        const copyCount = parseInt(localStorage.getItem(storageKey) || "0", 10);
+        return { ...prompt, copyCount };
+      });
+      // Sort by copy count in descending order
+      const sortedPrompts = promptsWithCounts.sort((a, b) => b.copyCount - a.copyCount);
+      // Determine the copy count threshold for top 3 (including ties)
+      const top3Threshold = sortedPrompts.length >= 3 ? sortedPrompts[2].copyCount : 0;
+      // Mark prompts as popular if their copy count is >= top3Threshold and non-zero
+      const updatedPrompts = sortedPrompts.map((prompt) => ({
+        ...prompt,
+        isPopular: prompt.copyCount >= top3Threshold && prompt.copyCount > 0,
+      }));
+      setPrompts(updatedPrompts);
     } catch (error) {
       console.error("Error fetching prompts:", error);
       toast.error("Failed to load prompts");
@@ -42,29 +63,47 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      await db.prompts.delete(id);
+      setPrompts(prompts.filter((prompt) => prompt.id !== id));
+      toast.success("Prompt deleted successfully");
+    } catch (error) {
+      console.error("Error deleting prompt:", error);
+      toast.error("Failed to delete prompt");
+    }
+  };
+
+  const handleEdit = (prompt: Prompt) => {
+    setEditingPrompt(prompt);
+    setShowAddForm(true);
+  };
+
+  const handleAddOrUpdatePrompt = async (promptData: {
+    image_url: string | null;
+    prompt_text: string;
+    ai_tool: string;
+    category: string;
+  }) => {
+    try {
+      const prompt: Prompt = {
+        id: editingPrompt ? editingPrompt.id : crypto.randomUUID(),
+        created_at: editingPrompt ? editingPrompt.created_at : new Date().toISOString(),
+        ...promptData,
+      };
+      await db.prompts.put(prompt);
+      await fetchPrompts();
+      toast.success(editingPrompt ? "Prompt updated successfully" : "Prompt added successfully");
+      setShowAddForm(false);
+      setEditingPrompt(null);
+    } catch (error) {
+      console.error("Error saving prompt:", error);
+      toast.error(editingPrompt ? "Failed to update prompt" : "Failed to add prompt");
+    }
+  };
+
   useEffect(() => {
     fetchPrompts();
-
-    // Subscribe to realtime changes in admin panel
-    const channel = supabase
-      .channel("admin-prompts-channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "prompts",
-        },
-        (payload) => {
-          console.log("Admin panel: Database changed!", payload);
-          fetchPrompts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   const filteredPrompts = prompts.filter((prompt) => {
@@ -82,31 +121,41 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
             Back to Main
           </Button>
           <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
-          <div className="w-32" /> {/* Spacer for alignment */}
+          <div /> {/* Spacer */}
         </div>
 
         {/* Category Filters and Add Button */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-2">
           <CategoryFilters
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
           />
           {!showAddForm && (
-            <Button onClick={() => setShowAddForm(true)} size="lg">
-              <Plus className="w-5 h-5 mr-2" />
-              Add New Image
-            </Button>
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  setEditingPrompt(null);
+                  setShowAddForm(true);
+                }}
+                size="sm"
+                className="px-3 py-1"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Prompt
+              </Button>
+            </div>
           )}
         </div>
 
-        {/* Add Form */}
+        {/* Add/Edit Form */}
         {showAddForm && (
-          <AddPromptForm
-            onClose={() => setShowAddForm(false)}
-            onSuccess={() => {
-              fetchPrompts();
+          <PromptForm
+            onClose={() => {
               setShowAddForm(false);
+              setEditingPrompt(null);
             }}
+            onSubmit={handleAddOrUpdatePrompt}
+            initialPrompt={editingPrompt}
           />
         )}
 
@@ -130,6 +179,10 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
                 promptText={prompt.prompt_text}
                 aiTool={prompt.ai_tool}
                 category={prompt.category}
+                isAdmin={true}
+                onEdit={() => handleEdit(prompt)}
+                onDelete={() => handleDelete(prompt.id)}
+                isPopular={prompt.isPopular}
               />
             ))}
           </div>

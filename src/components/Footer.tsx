@@ -1,32 +1,58 @@
-interface FooterProps {
-  onSecretLineClick: () => void;
-}
-
-const Footer = ({ onSecretLineClick }: FooterProps) => {
+const Footer = ({ onSecretLineClick }) => {
   return (
-    <footer className="mt-20 py-12 px-6 bg-muted/30 text-center border-t border-border">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <footer className="mt-20 py-8 px-4 text-center border-t bg-black">
+      <div className="max-w-4xl mx-auto flex justify-between">
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-foreground">Features:</h3>
-          <div className="text-sm text-muted-foreground space-y-1">
-            <p>• One-click copy</p>
-            <p>• Visual references</p>
-            <p>• Category filters</p>
-            <p>• Search functionality</p>
+          <h3 className="text-lg font-semibold mb-3 text-white">Features</h3>
+          <div className="text-sm space-y-1">
+            <p className="text-white">One-click copy</p>
+            <p className="text-white">Visual references</p>
+            <p className="text-white">Category filters</p>
+            <p className="text-white">Search functionality</p>
           </div>
         </div>
         
         <div>
-          <h3 className="text-lg font-semibold mb-3 text-foreground">Categories:</h3>
-          <p className="text-sm text-muted-foreground">
-            Men | Women | Couple | Kids
-          </p>
+          <h3 className="text-lg font-semibold mb-3 text-white">Categories</h3>
+          <div className="text-sm space-y-1">
+            <p className="text-white">Men</p>
+            <p className="text-white">Women</p>
+            <p className="text-white">Couple</p>
+            <p className="text-white">Kids</p>
+          </div>
         </div>
-        
-        <p className="text-sm text-muted-foreground">
-          Made with ♡
-        </p>
       </div>
+      
+      <p className="text-sm mt-4 text-white">
+        Made with{" "}
+        <span
+          className="inline-block animate-pulse-heart"
+          style={{
+            animation: "pulseHeart 1.5s ease-in-out infinite",
+          }}
+        >
+          ♡
+        </span>
+      </p>
+      
+      <style>
+        {`
+          @keyframes pulseHeart {
+            0% {
+              color: white;
+              transform: scale(1);
+            }
+            50% {
+              color: red;
+              transform: scale(1.2);
+            }
+            100% {
+              color: white;
+              transform: scale(1);
+            }
+          }
+        `}
+      </style>
       
       {/* Secret silver line */}
       <div 

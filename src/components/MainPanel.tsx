@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import CategoryFilters from "@/components/CategoryFilters";
-import SearchBar from "@/components/SearchBar";
 import PromptCard from "@/components/PromptCard";
 import Footer from "@/components/Footer";
-import { supabase } from "@/integrations/supabase/client";
+import Dexie from "dexie";
 import { toast } from "sonner";
+
+// Initialize Dexie database
+const db = new Dexie("PromptsDatabase");
+db.version(1).stores({
+  prompts: "id, prompt_text, ai_tool, category, created_at",
+});
 
 interface Prompt {
   id: string;
@@ -27,13 +32,27 @@ const MainPanel = ({ onSecretLineClick }: MainPanelProps) => {
 
   const fetchPrompts = async () => {
     try {
-      const { data, error } = await supabase
-        .from("prompts")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setPrompts(data || []);
+      const data = await db.prompts
+        .orderBy("created_at")
+        .reverse()
+        .toArray();
+      console.log("MainPanel: Fetched prompts from Dexie:", data);
+      // Add copy count from localStorage to each prompt
+      const promptsWithCounts = data.map((prompt) => {
+        const storageKey = `copyCount_${prompt.prompt_text.replace(/\s+/g, '_')}`;
+        const copyCount = parseInt(localStorage.getItem(storageKey) || "0", 10);
+        return { ...prompt, copyCount };
+      });
+      // Sort by copy count in descending order
+      const sortedPrompts = promptsWithCounts.sort((a, b) => b.copyCount - a.copyCount);
+      // Determine the copy count threshold for top 3 (including ties)
+      const top3Threshold = sortedPrompts.length >= 3 ? sortedPrompts[2].copyCount : 0;
+      // Mark prompts as popular if their copy count is >= top3Threshold and non-zero
+      const updatedPrompts = sortedPrompts.map((prompt) => ({
+        ...prompt,
+        isPopular: prompt.copyCount >= top3Threshold && prompt.copyCount > 0,
+      }));
+      setPrompts(updatedPrompts);
     } catch (error) {
       console.error("Error fetching prompts:", error);
       toast.error("Failed to load prompts");
@@ -44,27 +63,6 @@ const MainPanel = ({ onSecretLineClick }: MainPanelProps) => {
 
   useEffect(() => {
     fetchPrompts();
-
-    // Subscribe to realtime changes in main panel
-    const channel = supabase
-      .channel("main-prompts-channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "prompts",
-        },
-        (payload) => {
-          console.log("Main panel: Database changed!", payload);
-          fetchPrompts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
   const filteredPrompts = prompts.filter((prompt) => {
@@ -79,15 +77,13 @@ const MainPanel = ({ onSecretLineClick }: MainPanelProps) => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header searchTerm={searchTerm} onSearchChange={setSearchTerm} />
       
       <main className="max-w-7xl mx-auto py-12 px-4">
         <CategoryFilters
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
         />
-        
-        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
         
         {isLoading ? (
           <div className="text-center py-12">
@@ -108,6 +104,7 @@ const MainPanel = ({ onSecretLineClick }: MainPanelProps) => {
                 promptText={prompt.prompt_text}
                 aiTool={prompt.ai_tool}
                 category={prompt.category}
+                isPopular={prompt.isPopular}
               />
             ))}
           </div>
