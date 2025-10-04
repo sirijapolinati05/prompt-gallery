@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        mono: ['"SUSE Mono"', 'monospace'], // Adding SUSE Mono as the primary font with fallback to monospace
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

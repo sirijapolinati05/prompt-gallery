@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { createPortal } from "react-dom";
 
 interface Prompt {
   id?: string;
@@ -32,15 +34,17 @@ interface PromptFormProps {
     category: string;
   }) => void;
   initialPrompt?: Prompt | null;
+  triggerElement?: HTMLElement | null; // Element that triggered the form
 }
 
-const PromptForm = ({ onClose, onSubmit, initialPrompt }: PromptFormProps) => {
+const PromptForm = ({ onClose, onSubmit, initialPrompt, triggerElement }: PromptFormProps) => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [promptText, setPromptText] = useState("");
   const [aiTool, setAiTool] = useState("");
   const [category, setCategory] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (initialPrompt) {
@@ -48,9 +52,22 @@ const PromptForm = ({ onClose, onSubmit, initialPrompt }: PromptFormProps) => {
       setAiTool(initialPrompt.ai_tool || "");
       setCategory(initialPrompt.category || "");
       setImagePreview(initialPrompt.image_url || "");
-      setImageFile(null); // Reset file, as we use base64 string
+      setImageFile(null);
     }
   }, [initialPrompt]);
+
+  useEffect(() => {
+    if (triggerElement && dialogRef.current) {
+      const rect = triggerElement.getBoundingClientRect();
+      const dialog = dialogRef.current;
+      // Position the dialog near the trigger element
+      dialog.style.position = "absolute";
+      dialog.style.top = `${rect.bottom + window.scrollY}px`;
+      dialog.style.left = `${rect.left + window.scrollX}px`;
+      dialog.style.maxWidth = "28rem";
+      dialog.style.zIndex = "50";
+    }
+  }, [triggerElement]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -93,6 +110,7 @@ const PromptForm = ({ onClose, onSubmit, initialPrompt }: PromptFormProps) => {
       setPromptText("");
       setAiTool("");
       setCategory("");
+      onClose(); // Close the dialog after successful submission
     } catch (error) {
       console.error(`Error ${initialPrompt ? "updating" : "adding"} prompt:`, error);
       toast.error(`Failed to ${initialPrompt ? "update" : "add"} prompt. Please try again.`);
@@ -101,8 +119,8 @@ const PromptForm = ({ onClose, onSubmit, initialPrompt }: PromptFormProps) => {
     }
   };
 
-  return (
-    <Card className="border-2 border-primary/20 shadow-[var(--shadow-card)] max-w-lg w-full sm:w-[28rem] mx-auto">
+  const formContent = (
+    <Card className="border-2 border-primary/20 shadow-[var(--shadow-card)] max-w-lg w-full sm:w-[28rem]">
       <CardHeader className="flex flex-row items-center justify-between p-4">
         <CardTitle className="text-lg">{initialPrompt ? "Edit Prompt" : "Add New Prompt"}</CardTitle>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -212,6 +230,15 @@ const PromptForm = ({ onClose, onSubmit, initialPrompt }: PromptFormProps) => {
         </form>
       </CardContent>
     </Card>
+  );
+
+  return createPortal(
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent ref={dialogRef} className="p-0 border-none bg-transparent shadow-none">
+        {formContent}
+      </DialogContent>
+    </Dialog>,
+    document.body
   );
 };
 

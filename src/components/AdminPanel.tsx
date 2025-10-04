@@ -14,6 +14,8 @@ interface Prompt {
   ai_tool: string;
   category: string;
   created_at: string;
+  copyCount?: number;
+  isPopular?: boolean;
 }
 
 interface AdminPanelProps {
@@ -43,14 +45,13 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
       const promptsWithCounts = data.map((prompt) => {
         const storageKey = `copyCount_${prompt.prompt_text.replace(/\s+/g, '_')}`;
         const copyCount = parseInt(localStorage.getItem(storageKey) || "0", 10);
-        return { ...prompt, copyCount };
+        return { ...prompt, copyCount, category: prompt.category.toLowerCase() }; // Normalize category
       });
-      // Sort by copy count in descending order
-      const sortedPrompts = promptsWithCounts.sort((a, b) => b.copyCount - a.copyCount);
       // Determine the copy count threshold for top 3 (including ties)
-      const top3Threshold = sortedPrompts.length >= 3 ? sortedPrompts[2].copyCount : 0;
+      const sortedByCopyCount = [...promptsWithCounts].sort((a, b) => (b.copyCount || 0) - (a.copyCount || 0));
+      const top3Threshold = sortedByCopyCount.length >= 3 ? sortedByCopyCount[2].copyCount : 0;
       // Mark prompts as popular if their copy count is >= top3Threshold and non-zero
-      const updatedPrompts = sortedPrompts.map((prompt) => ({
+      const updatedPrompts = promptsWithCounts.map((prompt) => ({
         ...prompt,
         isPopular: prompt.copyCount >= top3Threshold && prompt.copyCount > 0,
       }));
@@ -90,6 +91,7 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
         id: editingPrompt ? editingPrompt.id : crypto.randomUUID(),
         created_at: editingPrompt ? editingPrompt.created_at : new Date().toISOString(),
         ...promptData,
+        category: promptData.category.toLowerCase(), // Normalize category
       };
       await db.prompts.put(prompt);
       await fetchPrompts();
@@ -106,10 +108,34 @@ const AdminPanel = ({ onBack }: AdminPanelProps) => {
     fetchPrompts();
   }, []);
 
-  const filteredPrompts = prompts.filter((prompt) => {
-    if (selectedCategory === "All Prompts") return true;
-    return prompt.category === selectedCategory;
-  });
+  // Apply sorting to filtered prompts: popular cards first, then by category order
+  const categoryOrder = {
+    men: 1,
+    women: 2,
+    couple: 3,
+    kids: 4,
+  };
+  const filteredPrompts = prompts
+    .filter((prompt) => {
+      if (selectedCategory === "All Prompts") return true;
+      return prompt.category.toLowerCase() === selectedCategory.toLowerCase();
+    })
+    .sort((a, b) => {
+      // Prioritize popular cards
+      if (a.isPopular && !b.isPopular) return -1;
+      if (!a.isPopular && b.isPopular) return 1;
+      // If both are popular, sort by copyCount descending
+      if (a.isPopular && b.isPopular) {
+        return (b.copyCount || 0) - (a.copyCount || 0);
+      }
+      // For non-popular cards, sort by category order, then copyCount
+      const aOrder = categoryOrder[a.category.toLowerCase()] || 5;
+      const bOrder = categoryOrder[b.category.toLowerCase()] || 5;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder; // Primary sort by category order
+      }
+      return (b.copyCount || 0) - (a.copyCount || 0); // Secondary sort by copy count
+    });
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
