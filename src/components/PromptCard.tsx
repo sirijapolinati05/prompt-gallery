@@ -96,9 +96,9 @@ const PromptCard = ({ imageUrl, promptText, aiTool, category, isAdmin = false, o
                   : category.toLowerCase() === 'women'
                   ? 'bg-[#ADFF2F] border-[#9ACD32] hover:bg-[#B22222] hover:border-[#B22222] hover:shadow-[0_4px_8px_rgba(178,34,34,0.5)]'
                   : category.toLowerCase() === 'couple'
-                  ? 'bg-[#20B2AA] border-[#008B8B] hover:bg-[#9ACD32] hover:border-[#9ACD32] hover:shadow-[0_4px_8px_rgba(154,205,50,0.5)]'
+                  ? 'bg-[#FFD700] border-[#DAA520] hover:bg-[#000080] hover:border-[#000080] hover:shadow-[0_4px_8px_rgba(0,0,128,0.5)]'
                   : category.toLowerCase() === 'kids'
-                  ? 'bg-[#4682B4] border-[#4169E1] hover:bg-[#2E8B57] hover:border-[#2E8B57] hover:shadow-[0_4px_8px_rgba(46,139,87,0.5)]'
+                  ? 'bg-[#00FFFF] border-[#00CED1] hover:bg-[#2E8B57] hover:border-[#2E8B57] hover:shadow-[0_4px_8px_rgba(46,139,87,0.5)]'
                   : 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:border-primary/30'
               }`}
               style={{
@@ -113,14 +113,14 @@ const PromptCard = ({ imageUrl, promptText, aiTool, category, isAdmin = false, o
           </div>
           <Button
             onClick={handleCopy}
-            className={`w-3/5 mx-auto block mt-2 relative transition-all duration-300 ease-in-out transform translate-y-[-4px] hover:-translate-y-4 hover:-rotate-x-10 hover:scale-105 hover:shadow-[0_16px_32px_rgba(0,0,0,0.6)] ${
-              copied ? 'bg-green-500 hover:bg-green-600 text-black border-green-700' : 'bg-primary hover:bg-[#9333ea] text-white border-primary/70 hover:border-[#7e22ce]'
+            className={`w-3/5 mx-auto block mt-2 relative transition-all duration-300 ease-in-out transform translate-y-[-4px] hover:-translate-y-4 hover:-rotate-x-10 hover:scale-105 hover:shadow-[0_16px_32px_rgba(0,0,0,0.6)] hover:text-black ${
+              copied ? 'bg-green-500 hover:bg-green-600 text-black border-green-700' : 'bg-primary hover:bg-[#ADD8E6] text-white border-primary/70 hover:border-[#87CEEB]'
             } font-medium rounded-lg py-2 px-4 border-b-4 flex items-center justify-center float-animation`}
             style={{
               transform: 'perspective(1000px) translateZ(8px)',
               boxShadow: '0 8px 16px rgba(0,0,0,0.3), inset 0 -2px 2px rgba(0,0,0,0.1), 0 0 20px rgba(147,51,234,0.4)',
               animation: copied ? 'none' : 'float 2s ease-in-out infinite',
-              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out, scale 0.3s ease-in-out',
+              transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out, scale 0.3s ease-in-out, color 0.3s ease-in-out',
             } as React.CSSProperties}
           >
             <style>
@@ -132,6 +132,18 @@ const PromptCard = ({ imageUrl, promptText, aiTool, category, isAdmin = false, o
                 }
                 .float-animation {
                   animation: float 2s ease-in-out infinite;
+                }
+                @keyframes floatIcons {
+                  0% { transform: perspective(1000px) translateZ(4px) translateY(-2px); }
+                  50% { transform: perspective(1000px) translateZ(8px) translateY(-4px); }
+                  100% { transform: perspective(1000px) translateZ(4px) translateY(-2px); }
+                }
+                .float-icons {
+                  animation: floatIcons 2s ease-in-out infinite;
+                }
+                .float-icons:hover {
+                  transform: perspective(1000px) translateZ(12px) scale(1.1);
+                  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
                 }
               `}
             </style>
@@ -149,15 +161,48 @@ const PromptCard = ({ imageUrl, promptText, aiTool, category, isAdmin = false, o
           </Button>
           {isAdmin && (
             <div className="flex justify-end gap-2 pt-3 border-t border-border">
-              <Button variant="ghost" size="sm" onClick={onEdit}>
-                <Edit className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onDelete}>
-                <Trash2 className="w-4 h-4 text-red-500" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleDownload}>
-                <Download className="w-4 h-4 text-green-500" />
-              </Button>
+              <div className="w-8 h-8 bg-[#F5F6F5] rounded-md flex items-center justify-center float-icons" style={{
+                transform: 'perspective(1000px) translateZ(4px)',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.2), inset 0 -2px 2px rgba(0,0,0,0.05)',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, scale 0.3s ease-in-out',
+              } as React.CSSProperties}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onEdit}
+                  className="border-2 border-transparent hover:border-yellow-500 transition-all duration-300 bg-transparent hover:bg-transparent w-full h-full flex items-center justify-center"
+                >
+                  <Edit className="w-4 h-4 text-black" />
+                </Button>
+              </div>
+              <div className="w-8 h-8 bg-[#F5F6F5] rounded-md flex items-center justify-center float-icons" style={{
+                transform: 'perspective(1000px) translateZ(4px)',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.2), inset 0 -2px 2px rgba(0,0,0,0.05)',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, scale 0.3s ease-in-out',
+              } as React.CSSProperties}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onDelete}
+                  className="border-2 border-transparent hover:border-yellow-500 transition-all duration-300 bg-transparent hover:bg-transparent w-full h-full flex items-center justify-center"
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </Button>
+              </div>
+              <div className="w-8 h-8 bg-[#F5F6F5] rounded-md flex items-center justify-center float-icons" style={{
+                transform: 'perspective(1000px) translateZ(4px)',
+                boxShadow: '0 4px 8px rgba(0,0,0,0.2), inset 0 -2px 2px rgba(0,0,0,0.05)',
+                transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, scale 0.3s ease-in-out',
+              } as React.CSSProperties}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDownload}
+                  className="border-2 border-transparent hover:border-yellow-500 transition-all duration-300 bg-transparent hover:bg-transparent w-full h-full flex items-center justify-center"
+                >
+                  <Download className="w-4 h-4 text-green-500" />
+                </Button>
+              </div>
             </div>
           )}
           <div className="flex justify-end items-center gap-1 text-xs text-muted-foreground">

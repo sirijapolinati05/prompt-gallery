@@ -15,7 +15,7 @@ const Header = ({ searchTerm, onSearchChange }: HeaderProps) => {
           <h1 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-3 tracking-tight">
             ✨ PromptGallery
           </h1>
-          <p className="text-primary-foreground/90 text-lg md:text-xl mx-auto mb-6 whitespace-nowrap">
+          <p className="text-primary-foreground/90 text-lg md:text-xl mx-auto mb-6">
             Discover and copy the best AI image generation prompts for creating stunning visuals.
           </p>
           <div className="relative max-w-2xl mx-auto mb-8 transform -translate-z-10 p-2 bg-gray-800/30 border border-gray-300/20 rounded-xl shadow-[inset_0_4px_8px_rgba(0,0,0,0.4)]">
